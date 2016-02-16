@@ -152,9 +152,7 @@ def build_state(module, cur_state):
     # of those        
     changed = False
     for field in STATE_FIELDS:
-        if field in cur_state and field not in light_state or \
-           field in light_state and field not in cur_state or \
-           cur_state[field] != light_state[field]:
+        if field in light_state and cur_state.get(field) != light_state.get(field):
             changed = True
             break
 
