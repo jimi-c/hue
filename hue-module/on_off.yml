@@ -3,6 +3,6 @@
   tasks:
   - hue:
       station: 192.168.0.200
-      name: "{{my_light|default('all')}}"
-      !!str on: true
+      name: "{{light|default('all')}}"
+      !!str on: "{{on_off|default(True)}}"
       brightness: 254

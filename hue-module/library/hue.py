@@ -246,7 +246,7 @@ def main():
     # whether or not we changed. In both cases, we return the state of
     # the lights which were specified.
     if failed:
-        if light == 'all':
+        if name == 'all':
             module.fail_json(msg="One or more lights failed to update.", light_states=final_states)
         else:
             module.fail_json(msg="The light '%s' failed to update.", light_state=final_states)
