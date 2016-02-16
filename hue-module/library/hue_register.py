@@ -34,7 +34,7 @@ description:
 requirements:
 - python-hue
 options:
-  station:
+  bridge:
     required: true
     description:
     - "The address of the Hue hub or controller"
@@ -43,7 +43,7 @@ options:
 EXAMPLES = '''
 # Register with the Hue hub (after pressing the button on the hub)
 - hue_register:
-    station: 192.168.0.1
+    bridge: 192.168.0.1
 
 '''
 
@@ -51,7 +51,7 @@ def main():
 
     module = AnsibleModule(
         argument_spec = dict(
-            station=dict(required=True, type='str'),
+            bridge=dict(required=True, type='str'),
         ),
         supports_check_mode=False,
     )
@@ -62,7 +62,7 @@ def main():
     # Connect and authenticate to the Hue hub
     try:
         h = Hue()
-        h.station_ip = module.params['station']
+        h.station_ip = module.params['bridge']
         h.authenticate()
     except Exception, e:
         module.fail_json(msg="Failed to authenticate to the Hue hub. Make sure you've pushed the button on the hub recently. Error was: %s" % str(e))

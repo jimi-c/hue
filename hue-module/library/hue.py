@@ -34,7 +34,7 @@ description:
 requirements:
 - python-hue
 options:
-  station:
+  bridge:
     required: true
     description:
     - "The address of the Hue hub or controller"
@@ -43,14 +43,14 @@ options:
 EXAMPLES = '''
 # Turn all of the lights on and make their colors loop
 - hue:
-    station: 192.168.0.1
+    bridge: 192.168.0.1
     name: all
     brightness 254
     effect: colorloop
 
 # Turn off the first light
 - hue:
-    station: 192.168.0.1
+    bridge: 192.168.0.1
     name: l1
     on: false
 
@@ -162,7 +162,7 @@ def main():
 
     module = AnsibleModule(
         argument_spec = dict(
-            station=dict(required=True, type='str'),
+            bridge=dict(required=True, type='str'),
             name=dict(required=True, type='str'),
             on=dict(default=True, type='bool'),
             brightness=dict(type='int'),
@@ -185,7 +185,7 @@ def main():
     # Connect to the Hue hub
     try:
         h = Hue()
-        h.station_ip = module.params['station']
+        h.station_ip = module.params['bridge']
         h.get_state()
     except Exception, e:
         module.fail_json(msg="Failed to connect to the Hue hub. Make sure you've registered using the hue_register module first. Error was: %s" % str(e))

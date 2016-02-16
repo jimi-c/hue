@@ -2,7 +2,7 @@
   gather_facts: no
   tasks:
   - hue:
-      station: 192.168.0.200
+      bridge: 192.168.0.200
       name: "{{light|default('all')}}"
       !!str on: true
       brightness: 254
