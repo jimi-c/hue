@@ -1,0 +1,8 @@
+- hosts: localhost
+  gather_facts: no
+  tasks:
+  - hue:
+      station: 192.168.0.200
+      name: "{{my_light|default('all')}}"
+      !!str on: true
+      brightness: 254

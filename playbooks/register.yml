@@ -1,0 +1,9 @@
+- hosts: localhost
+  gather_facts: no
+  tasks:
+  - pause:
+      prompt: "Press the button on the hub now..."
+  - uri:
+      url: "http://192.168.0.200/api"
+      method: POST
+      body: '{"username": "12345-luggage", "devicetype": "Ansible!"}'
