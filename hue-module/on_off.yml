@@ -1,8 +1,0 @@
-- hosts: localhost
-  gather_facts: no
-  tasks:
-  - hue:
-      bridge: 192.168.0.200
-      name: "{{light|default('all')}}"
-      !!str on: "{{on_off|default(True)}}"
-      brightness: 254
