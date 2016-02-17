@@ -15,13 +15,15 @@
 # You should have received a copy of the GNU General Public License
 # along with Ansible.  If not, see <http://www.gnu.org/licenses/>.
 
+import hashlib
+import socket
 import time
 
 try:
-    from hue import Hue
-    HUE_AVAILABLE = True
+    import json
+    HAS_JSON = True
 except ImportError:
-    HUE_AVAILABLE = False
+    HAS_JSON = False
 
 DOCUMENTATION = '''
 ---
@@ -31,20 +33,25 @@ author: "James Cammarata (@jimi-c)"
 short_description: Control Philips Hue lights
 description:
 - A module to control Philips Hue lights via the python-hue library.
-requirements:
-- python-hue
+requirements: []
 options:
   bridge:
     required: true
     description:
     - "The address of the Hue hub or controller"
-  name:
+  id:
     required: true
     description:
     - "The id of the light or group to be controlled. For lights, the id should be of the form C(lX), 
        and groups should be of the form C(gX) where X is the id of the the item from the API."
     - "The special id C(all) can also be used, which is an alias for the special '0' group, which
        contains all of the lights connected to the bridge"
+    - "Either C(id) or C(name) must be specified."
+  name:
+    required: true
+    descriptioni:
+    - "The name of the light or group to be controlled."
+    - "Either C(id) or C(name) must be specified."
   on:
     default: true
     description:
@@ -89,19 +96,68 @@ EXAMPLES = '''
 # Turn all of the lights on and make their colors loop
 - hue:
     bridge: 192.168.0.1
-    name: all
+    id: all
     brightness 254
     effect: colorloop
 
 # Turn off the first light
 - hue:
     bridge: 192.168.0.1
-    name: l1
-    on: false
+    id: l1
+    !!str on: false
 
+# Update light group 1
+- hue:
+    bridge: 192.168.0.1
+    name: "Test Group 1"
+    rgb: "#ff00ff"
+    brightness: 128
 '''
 
 STATE_FIELDS = ('on', 'bri', 'hue', 'sat', 'xy', 'ct', 'alert', 'effect',)
+
+class Hue(object):
+    def __init__(self, bridge):
+        self.bridge = bridge
+
+        # the token code here is copied from python-hue
+        # https://github.com/issackelly/python-hue/blob/master/hue/hue.py
+        self.token = hashlib.md5("ph-%s" % socket.getfqdn()).hexdigest()
+
+    def check_success(self, result):
+        for status in result:
+            if 'failed' in status.keys():
+                return False
+        return True
+
+    def get_config(self):
+        url = 'http://%s/api/%s' % (self.bridge, self.token)
+        res = open_url(url, method='GET', timeout=5)
+        return json.load(res)
+
+    def get_state(self, target):
+        real_target = target[1:]
+        if target.startswith('l'):
+            url = 'http://%s/api/%s/lights/%s' % (self.bridge, self.token, real_target)
+        elif target.startswith('g'):
+            url = 'http://%s/api/%s/groups/%s' % (self.bridge, self.token, real_target)
+        else:
+            raise Exception("Invalid target: %s" % target)
+
+        res = open_url(url, method='GET', timeout=5)
+        return json.load(res)
+
+    def set_state(self, target, state):
+        real_target = target[1:]
+        if target.startswith('l'):
+            url = 'http://%s/api/%s/lights/%s/state' % (self.bridge, self.token, real_target)
+        elif target.startswith('g'):
+            url = 'http://%s/api/%s/groups/%s/action' % (self.bridge, self.token, real_target)
+        else:
+            raise Exception("Invalid target: %s" % target)
+
+        res = open_url(url, data=json.dumps(state), method='PUT', timeout=5)
+        return json.load(res)
 
 def hex2rgb(hex):
     '''
@@ -127,17 +183,17 @@ def rgb2xy(r, g, b):
 def build_state(module, cur_state):
     '''
     Builds the state based on the module params and the current state
-    of the given light object from the python-hue library.
+    of the given light object from the Hue bridge.
     '''
-    light_state = dict()
+    thing_state = dict()
 
     # set the 'on' state
-    light_state['on'] = module.params.get('on')
+    thing_state['on'] = module.params.get('on')
 
     # set the brightness
     bri = module.params.get('brightness', None)
     if bri is not None:
-        light_state['bri'] = bri
+        thing_state['bri'] = bri
 
     # set the alert
     alert = module.params.get('alert', None)
@@ -145,7 +201,7 @@ def build_state(module, cur_state):
         alert = alert.lower()
         if alert not in ('none', 'select', 'lselect'):
             module.fail_json(msg="The alert setting must be one of the following values: none, select or lselect")
-        light_state['alert'] = alert
+        thing_state['alert'] = alert
 
     # set the effect
     effect = module.params.get('effect', None)
@@ -153,21 +209,21 @@ def build_state(module, cur_state):
         effect = effect.lower()
         if effect not in ('none', 'colorloop'):
             module.fail_json(msg="The effect setting must be one of the following values: none or colorloop")
-        light_state['effect'] = effect
+        thing_state['effect'] = effect
 
     # set the transition time
     transition_time = module.params.get('transition_time', None)
     if transition_time is not None:
-        light_state['transitiontime'] = transition_time
+        thing_state['transitiontime'] = transition_time
 
     # Figure out which color mode we're using...
     if 'hue' in module.params or 'saturation' in module.params:
         hue = module.params.get('hue', None)
         if hue is not None:
-            light_state['hue'] = hue
+            thing_state['hue'] = hue
         sat = module.params.get('saturation', None)
         if sat is not None:
-            light_state['sat'] = sat
+            thing_state['sat'] = sat
     elif 'xy' in module.params or 'rgb' in module.params:
         if 'rgb' in module.params:
             # The Hue doesn't support RGB by default, and python-hue does
@@ -185,30 +241,31 @@ def build_state(module, cur_state):
             except:
                 module.fail_json(msg="Invalid xy value. Expected an array of 2 floating point values (0.0 >= [x,y] >= 1.0) but got %s" % (module.params['xy'],))
 
-        light_state['xy'] = [x, y]
+        thing_state['xy'] = [x, y]
     elif 'color_temp' in module.params:
         ct = module.params['color_temp']
         if ct < 153 or ct > 500:
             module.warning('The color temperature specified (%d) may be outside of the recommend range (153-500) listed in the Hue API documentation' % ct)
-        light_state['ct'] = ct
+        thing_state['ct'] = ct
 
     # Test to see if any fields changed. We only test those set in
     # the global constant as we don't want to set any fields outside
     # of those        
     changed = False
     for field in STATE_FIELDS:
-        if field in light_state and cur_state.get(field) != light_state.get(field):
+        if field in thing_state and cur_state.get(field) != thing_state.get(field):
             changed = True
             break
 
-    return (changed, light_state)
+    return (changed, thing_state)
 
 def main():
 
     module = AnsibleModule(
         argument_spec = dict(
             bridge=dict(required=True, type='str'),
-            name=dict(required=True, type='str'),
+            id=dict(type='str'),
+            name=dict(type='str'),
             on=dict(default=True, type='bool'),
             brightness=dict(type='int'),
             hue=dict(type='int'),
@@ -220,70 +277,87 @@ def main():
             effect=dict(type='str', choices=['none', 'colorloop']),
             transition_time=dict(type='int'),
         ),
-        mutually_exclusive=(('hue', 'xy', 'color_temp', 'rgb'), ('saturation', 'xy', 'color_temp', 'rgb')),
+        mutually_exclusive=(('id', 'name'), ('hue', 'xy', 'color_temp', 'rgb'), ('saturation', 'xy', 'color_temp', 'rgb')),
+        required_one_of=(('id', 'name'),),
         supports_check_mode=True
     )
 
-    if not HUE_AVAILABLE:
-        module.fail_json(msg="The python-hue library is not installed")
-
-    # Connect to the Hue hub
+    # create our custom Hue() object and validate we're talking to it
     try:
-        h = Hue()
-        h.station_ip = module.params['bridge']
-        h.get_state()
+        hue = Hue(bridge=module.params['bridge'])
+        hue_config = hue.get_config()
     except Exception, e:
-        module.fail_json(msg="Failed to connect to the Hue hub. Make sure you've registered using the hue_register module first. Error was: %s" % str(e))
+        module.fail_json(msg="Failed to connect to the Hue bridge. Make sure you've registered with it first using the hue_register module. Error was: %s" % str(e))
 
     # set initial flags
     changed = False
     failed  = False
 
     # get the targeted lights name from the module params
-    name  = module.params['name']
+    thing_id = module.params['id']
+    thing_name = module.params['name']
+    if thing_id is None:
+        # search lights and then groups for something with 'name'
+        for light_id, light_config in iter(hue_config.get('lights', {}).items()):
+            if light_config.get('name') == thing_name:
+                thing_id = "l%s" % light_id
+                break
+        else:
+            for group_id, group_config in iter(hue_config.get('groups', {}).items()):
+                if group_config.get('name') == thing_name:
+                    thing_id = "g%s" % group_id
+                    break
+            else:
+                module.fail_json(msg="There is no light or group on the Hue bridge named '%s'" % thing_name)
 
     # Compile the state (or list of states when using 'all' for the light name).
     # The final_states dict will hold the final state of each light
-    target_lights = dict()
+    target_states = dict()
     final_states = dict()
 
     # First we build the list of lights we're going to check
-    if name == 'all':
-        lights_to_check = list(h.lights.keys())
+    if thing_id == 'all' or thing_id == 'g0':
+        ids_to_check = [ "g0" ]
     else:
-        try:
-            # For an individual light, we check now to make sure
-            # it's valid with the Hue hub
-            the_light = h.lights[name]
-            lights_to_check = [ name ]
-        except KeyError:
-            module.fail_json(msg="Failed to find light '%s'. Make sure that the light was turned on." % name)
+        real_id = thing_id[1:]
+        if thing_id.startswith('l'):
+            the_thing = hue_config.get('lights', {}).get(real_id)
+        elif thing_id.startswith('g'):
+            the_thing = hue_config.get('groups', {}).get(real_id) 
+        else:
+            module.fail_json(msg="Invalid light or group name: '%s'" % (thing_name or thing_id,))
+            
+        if the_thing is None:
+            module.fail_json(msg="Failed to find light or group '%s'. Make sure that the light was turned on." % (thing_name or thing_id,))
+        else:
+            ids_to_check = [ thing_id ]
 
     # Then, for each light in the list, fetch the current state and build
     # the desired state (assuming the light is reachable)
-    for light_name in lights_to_check:
-        the_light = h.lights.get(light_name)
-        the_light.update_state_cache()
-        if not the_light.state.get('state', {}).get('reachable', True):
-            final_states[light_name] = the_light.state.copy()
+    for _id in ids_to_check:
+        thing_state = hue.get_state(_id)
+        if not thing_state.get('state', {}).get('reachable', True):
+            final_states[_id] = thing_state
             failed = True
         else:
-            state_changed, desired_state = build_state(module, the_light.state)
+            if _id.startswith('l'):
+                thing_state = thing_state.get('state')
+            elif _id.startswith('g'):
+                thing_state = thing_state.get('action')
+
+            state_changed, desired_state = build_state(module, thing_state)
             changed |= state_changed
-            target_lights[light_name] = desired_state
+            target_states[_id] = desired_state
 
     # Next, we set the state of each light as requested above
-    for target_light, target_state in iter(target_lights.items()):
-        the_light = h.lights[target_light]
+    for target_thing, target_state in iter(target_states.items()):
         if not module.check_mode and len(target_state) > 0:
             # get the light and set the state
-            the_light = the_light.set_state(target_state)
-            the_light.update_state_cache()
-            if not the_light.state.get('state', {}).get('reachable', True):
-                failed = True
+            result = hue.set_state(target_thing, target_state)
+            failed = not hue.check_success(result)
 
         # save the state for the final module result
-        final_states[target_light] = the_light.state.copy()
+        final_states[target_thing] = hue.get_state(target_thing)
 
     # If one or more lights failed, fail the module, otherwise return
     # whether or not we changed. In both cases, we return the state of
@@ -292,11 +366,12 @@ def main():
         if name == 'all':
             module.fail_json(msg="One or more lights failed to update.", light_states=final_states)
         else:
-            module.fail_json(msg="The light '%s' failed to update.", light_state=final_states)
+            module.fail_json(msg="The light or group '%s' failed to update.", light_states=final_states)
     else:
         module.exit_json(changed=changed, light_states=final_states)
 
 # import module snippets
 from ansible.module_utils.basic import *
+from ansible.module_utils.urls import *
 main()
 
