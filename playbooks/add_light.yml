@@ -5,7 +5,7 @@
       url: "http://192.168.0.200/api/1b7a7c857a4f6899219a3ea8b1ce7d6d/lights"
       method: POST
       body: '{"deviceid":["6A0F05", "F0C45C", "11E153", "7F8777", "BE96F5", "7AEA32", "C80ED8", "269360", "815E42"]}'
-  - pause:
+  - pause: seconds=120
   - uri:
       url: "http://192.168.0.200/api/1b7a7c857a4f6899219a3ea8b1ce7d6d/lights/new"
       method: GET

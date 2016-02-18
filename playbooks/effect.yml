@@ -1,21 +1,14 @@
 - hosts: localhost
   gather_facts: no
   vars:
-    bri: "{{my_bri|default(254)}}"
     effect_state:
       "on": true
-      "bri": "{{my_bri|int}}"
-      "transitiontime": "{{transitiontime|default(2)|int}}"
+      "bri": 254
       "effect": "{{effect|default('none')}}"
   tasks:
   - uri:
       url: "http://192.168.0.200/api/12345-luggage/lights/{{item}}/state"
       method: PUT
       body: "{{effect_state|to_json}}"
-      #body: "{{effect_state}}"
-      #body_format: json
-    with_items:
-    #- 1
-    - 2
-    #- 3
+    with_sequence: start=1 end=8
 

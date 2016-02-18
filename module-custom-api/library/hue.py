@@ -296,7 +296,7 @@ def main():
     # get the targeted lights name from the module params
     thing_id = module.params['id']
     thing_name = module.params['name']
-    if thing_id is None:
+    if thing_id is None and thing_name != 'all':
         # search lights and then groups for something with 'name'
         for light_id, light_config in iter(hue_config.get('lights', {}).items()):
             if light_config.get('name') == thing_name:
@@ -316,7 +316,7 @@ def main():
     final_states = dict()
 
     # First we build the list of lights we're going to check
-    if thing_id == 'all' or thing_id == 'g0':
+    if thing_name == 'all' or thing_id == 'g0' or thing_id == 'all':
         ids_to_check = [ "g0" ]
     else:
         real_id = thing_id[1:]
@@ -363,7 +363,7 @@ def main():
     # whether or not we changed. In both cases, we return the state of
     # the lights which were specified.
     if failed:
-        if name == 'all':
+        if thing_name == 'all':
             module.fail_json(msg="One or more lights failed to update.", light_states=final_states)
         else:
             module.fail_json(msg="The light or group '%s' failed to update.", light_states=final_states)
