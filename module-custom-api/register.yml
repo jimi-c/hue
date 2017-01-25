@@ -1,0 +1,5 @@
+- hosts: localhost
+  gather_facts: no
+  tasks:
+  - hue_register:
+      bridge: 192.168.254.100

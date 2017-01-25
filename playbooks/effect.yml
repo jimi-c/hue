@@ -7,7 +7,7 @@
       "effect": "{{effect|default('none')}}"
   tasks:
   - uri:
-      url: "http://192.168.0.200/api/12345-luggage/lights/{{item}}/state"
+      url: "http://192.168.254.100/api/12345-luggage/lights/{{item}}/state"
       method: PUT
       body: "{{effect_state|to_json}}"
     with_sequence: start=1 end=8

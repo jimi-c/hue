@@ -1,0 +1,7 @@
+- hosts: localhost
+  gather_facts: no
+  tasks:
+  - include_vars: "../lights_{{env}}.yml"
+  - hue_search:
+      bridge: 192.168.254.100
+      serial_numbers: "{{serial_numbers}}"

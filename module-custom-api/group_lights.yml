@@ -1,0 +1,9 @@
+- hosts: localhost
+  gather_facts: no
+  tasks:
+  - hue_group:
+      bridge: 192.168.254.100
+      lights:
+      - l1
+      - l2
+      name: Home

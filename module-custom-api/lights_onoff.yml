@@ -1,0 +1,9 @@
+- hosts: localhost
+  gather_facts: no
+  tasks:
+  - hue:
+      bridge: 192.168.254.100
+      name: Home
+      !!str on: "{{state}}"
+      brightness: 180
+      rgb: "#eea657"

@@ -1,0 +1,15 @@
+- hosts: localhost
+  gather_facts: no
+  vars:
+    light_data:
+      deviceid: "{{serial_numbers}}"
+  tasks:
+  - include_vars: "../lights_{{env}}.yml"
+  - uri:
+      url: "http://192.168.254.100/api/12345-luggage/lights"
+      method: POST
+      body: ' {{light_data|to_json}}'
+  - pause: seconds=120
+  - uri:
+      url: "http://192.168.254.100/api/12345-luggage/lights/new"
+      method: GET

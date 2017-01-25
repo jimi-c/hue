@@ -8,14 +8,14 @@
       "on": false
   tasks:
   - uri:
-      url: "http://192.168.0.200/api/12345-luggage/lights/{{item}}/state"
+      url: "http://192.168.254.100/api/12345-luggage/lights/{{item}}/state"
       method: PUT
       body: ' {{on_state|to_json}}'
     with_sequence: start=1 end=8
     when: state is defined and state == 'on'
 
   - uri:
-      url: "http://192.168.0.200/api/12345-luggage/lights/{{item}}/state"
+      url: "http://192.168.254.100/api/12345-luggage/lights/{{item}}/state"
       method: PUT
       body: ' {{off_state|to_json}}'
     with_sequence: start=1 end=8
