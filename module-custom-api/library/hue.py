@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# -*- coding: utf-8 -*-
 
 # (c) 2016, James Cammarata <jimi@sngx.net>
 #
@@ -217,33 +218,35 @@ def build_state(module, cur_state):
         thing_state['transitiontime'] = transition_time
 
     # Figure out which color mode we're using...
-    if 'hue' in module.params or 'saturation' in module.params:
-        hue = module.params.get('hue', None)
+    hue = module.params.get('hue', None)
+    sat = module.params.get('saturation', None)
+    rgb = module.params.get('rgb', None)
+    xy  = module.params.get('xy', None)
+    ct  = module.params.get('ct', None)
+
+    if hue is not None or sat is not None:
         if hue is not None:
             thing_state['hue'] = hue
-        sat = module.params.get('saturation', None)
         if sat is not None:
             thing_state['sat'] = sat
-    elif 'xy' in module.params or 'rgb' in module.params:
-        if 'rgb' in module.params:
+    elif rgb is not None or xy is not None:
+        x, y = 0.0, 0.0
+        if rgb is not None:
             # The Hue doesn't support RGB by default, and python-hue does
             # the conversion internally. So to make sure we can preserve
             # idempotency we do the conversion calculation ourselves
             try:
-                x, y = rgb2xyz(hex2rgb(module.params['rgb']))
-            except:
-                module.fail_json(msg="Invalid RGB hex string: %s" % module.params['rgb'])
-        else:
+                x, y = rgb2xy(*hex2rgb(rgb))
+            except Exception as e:
+                module.fail_json(msg="Invalid RGB hex string: %s (%s)" % (rgb, e))
+        elif xy is not None:
             try:
-                x, y = module.params['xy']
-                assert isinstance(x, (int, float)) and x >= 0.0 and x <= 1.0
-                assert isinstance(y, (int, float)) and y >= 0.0 and y <= 1.0
+                x, y = xy
             except:
-                module.fail_json(msg="Invalid xy value. Expected an array of 2 floating point values (0.0 >= [x,y] >= 1.0) but got %s" % (module.params['xy'],))
+                module.fail_json(msg="Invalid xy value. Expected an array of 2 floating point values (0.0 >= [x,y] >= 1.0) but got %s" % (xy,))
 
         thing_state['xy'] = [x, y]
-    elif 'color_temp' in module.params:
-        ct = module.params['color_temp']
+    elif ct is not None:
         if ct < 153 or ct > 500:
             module.warning('The color temperature specified (%d) may be outside of the recommend range (153-500) listed in the Hue API documentation' % ct)
         thing_state['ct'] = ct
