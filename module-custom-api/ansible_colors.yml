@@ -1,0 +1,12 @@
+- hosts: localhost
+  gather_facts: no
+  vars:
+    on_state:
+  tasks:
+  - hue:
+      bridge: "192.168.254.100"
+      name: all
+      !!str on: yes
+      brightness: 120
+      rgb: "#ff3830" #"xy": [0.5701, 0.313]
+

@@ -1,14 +1,14 @@
 - hosts: localhost
   gather_facts: no
   vars:
-    effect_state:
+    on_state:
       "on": true
-      "bri": 254
-      "effect": "{{effect|default('none')}}"
+      "bri": 120
+      "xy": [0.5701, 0.313]
   tasks:
   - uri:
       url: "http://192.168.254.100/api/12345-luggage/lights/{{item}}/state"
       method: PUT
-      body: "{{effect_state|to_json}}"
+      body: ' {{on_state|to_json}}'
     with_sequence: start=1 end=6
 

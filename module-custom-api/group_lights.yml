@@ -6,4 +6,13 @@
       lights:
       - l1
       - l2
-      name: Home
+      - l3
+      name: Test1
+  - hue_group:
+      bridge: 192.168.254.100
+      lights:
+      - l4
+      - l5
+      - l6
+      name: Test2
+

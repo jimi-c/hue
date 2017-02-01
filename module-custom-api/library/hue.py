@@ -131,10 +131,15 @@ class Hue(object):
                 return False
         return True
 
+    def check_error(self, result):
+        if isinstance(result, list) and 'error' in result[0]:
+            raise Exception(result[0]['error'].get('description', 'Unknown API Error'))
+        return result
+
     def get_config(self):
         url = 'http://%s/api/%s' % (self.bridge, self.token)
         res = open_url(url, method='GET', timeout=5)
-        return json.load(res)
+        return self.check_error(json.load(res))
 
     def get_state(self, target):
         real_target = target[1:]
@@ -289,6 +294,7 @@ def main():
     try:
         hue = Hue(bridge=module.params['bridge'])
         hue_config = hue.get_config()
+        print("The hue config is: %s" % hue_config)
     except Exception, e:
         module.fail_json(msg="Failed to connect to the Hue bridge. Make sure you've registered with it first using the hue_register module. Error was: %s" % str(e))
 
