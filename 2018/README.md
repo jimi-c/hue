@@ -62,6 +62,10 @@ There are three demo playbooks included.  All three of them use the [include_var
 
     This playbook takes all bulbs and puts them into a mode called colorloop where the bulbs will randomly cycle colors.  This will happen for 5 seconds then it will turn off the effect.
 
+## DEMONSTRATION
+
+![hue screencast](hue.gif)
+
 ## License
 
 GPLv3
